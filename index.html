@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>KB NPD</title>
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#F9F9FB">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -34,7 +34,10 @@
   .bell i.on{background:#3DDC84}.bell i.need{background:var(--gold)}
 
   .bar{display:none!important} /* v6.37 ใช้แถบบนของระบบเอง ไม่ซ้อนสองชั้น */
-  .stage{flex:1;position:relative;background:#fff;overflow:hidden;margin-top:var(--safe-t);margin-bottom:var(--safe-b)}
+  /* v6.38 เต็มจอพอดี ไม่เหลือพื้นที่ว่างด้านล่าง: ยึดขอบจอจริง เว้นแค่แถบสถานะบน/แถบโฮมล่าง */
+  .stage{position:fixed;left:0;right:0;top:0;bottom:var(--safe-b);background:#F9F9FB;overflow:hidden}
+  html{height:-webkit-fill-available}
+  body{min-height:100vh;min-height:-webkit-fill-available;background:#F9F9FB!important}
   iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
   .loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px}
 
