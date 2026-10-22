@@ -8,7 +8,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
 var C = self.KB_CONFIG || {};
-var CACHE = 'kb-npd-shell-v1';
+var CACHE = 'kb-npd-shell-v6.37'; // เปลี่ยนเลขทุกครั้งที่อัปเดตไฟล์บน GitHub → เครื่องผู้ใช้โหลดของใหม่
 var SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/badge-96.png'];
 
 try {
