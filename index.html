@@ -35,7 +35,8 @@
 
   .bar{display:none!important} /* v6.37 ใช้แถบบนของระบบเอง ไม่ซ้อนสองชั้น */
   /* v6.38 เต็มจอพอดี ไม่เหลือพื้นที่ว่างด้านล่าง: ยึดขอบจอจริง เว้นแค่แถบสถานะบน/แถบโฮมล่าง */
-  .stage{position:fixed;left:0;right:0;top:0;bottom:var(--safe-b);background:#F9F9FB;overflow:hidden}
+  .stage{position:fixed;left:0;right:0;top:0;bottom:0;background:#F9F9FB;overflow:hidden} /* v6.38b ชิดขอบล่างจอ — ระบบเว้นระยะแถบโฮมเอง */
+  #sabProbe{position:fixed;bottom:0;height:0;padding-bottom:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none}
   html{height:-webkit-fill-available}
   body{min-height:100vh;min-height:-webkit-fill-available;background:#F9F9FB!important}
   iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
@@ -54,6 +55,12 @@
   .btn.ghost{background:transparent;color:var(--muted)}.btn.line{background:#fff;border:1px solid var(--line);color:var(--ink)}
   .btn:disabled{opacity:.5}
 
+  /* v6.38 ปุ่มลอย "เปิดแจ้งเตือน" — แสดงจนกว่าจะเปิดสำเร็จ (อยู่เหนือแถบเมนูล่างของระบบ) */
+  .pill{position:fixed;right:14px;bottom:calc(var(--safe-b) + 74px);z-index:6;display:none;align-items:center;gap:8px;border:0;border-radius:999px;background:#1E4F91;color:#fff;
+    font:inherit;font-size:14px;font-weight:600;padding:11px 16px 11px 13px;box-shadow:0 8px 24px rgba(30,79,145,.35);cursor:pointer}
+  .pill.show{display:flex}
+  .pill svg{width:18px;height:18px}
+  .pill i{width:8px;height:8px;border-radius:50%;background:#FFD60A;margin-left:2px}
   .scrim{position:fixed;inset:0;background:rgba(10,22,40,.45);display:none;z-index:10}
   .scrim.show{display:block}
   .sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:8px 18px calc(var(--safe-b) + 18px);
@@ -96,6 +103,7 @@
     </button>
   </header>
 
+  <div id="sabProbe"></div>
   <main class="stage">
     <div class="loading" id="loading">กำลังเปิดระบบ…</div>
     <iframe id="app" title="KB NPD" allow="clipboard-write"></iframe>
@@ -113,6 +121,7 @@
     </div>
   </main>
 
+  <button class="pill" id="pushPill" aria-label="เปิดการแจ้งเตือนบนมือถือ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>เปิดแจ้งเตือนมือถือ<i></i></button>
   <div class="scrim" id="scrim"></div>
   <section class="sheet" id="sheet" aria-label="ตั้งค่าการแจ้งเตือน">
     <div class="grip"></div>
@@ -171,10 +180,21 @@
   }
   if (configured) {
     $('app').src = appSrc();
-    $('app').addEventListener('load', function(){ $('loading').style.display = 'none'; });
+    $('app').addEventListener('load', function(){ $('loading').style.display = 'none'; sendInsets(); setTimeout(sendInsets, 1500); setTimeout(sendInsets, 4000); });
   } else {
     $('loading').style.display = 'none'; $('setup').classList.add('show');
   }
+
+  // v6.38b ส่งระยะแถบโฮมของ iPhone ให้หน้าระบบ (อยู่ในกรอบซ้อน จึงอ่านเองไม่ได้)
+  function sendInsets(){
+    var b = Math.round($('sabProbe').getBoundingClientRect().height || 0), msg = { type:'kbnpd-insets', bottom: b };
+    try {
+      var w = $('app').contentWindow; if (!w) return;
+      w.postMessage(msg, '*');
+      for (var i = 0; i < w.frames.length; i++) { try { w.frames[i].postMessage(msg, '*'); for (var j = 0; j < w.frames[i].frames.length; j++) w.frames[i].frames[j].postMessage(msg, '*'); } catch(e){} }
+    } catch(e){}
+  }
+  window.addEventListener('resize', function(){ setTimeout(sendInsets, 300); });
 
   // ── Service worker (ใช้ทั้งรับ push และทดสอบในเครื่อง) ──
   function ensureSW(){
@@ -297,9 +317,9 @@
     $('bannerIc').innerHTML = ic; $('bannerT').textContent = t; $('bannerP').innerHTML = p;
     var box = $('bannerActs'); box.innerHTML = '';
     acts.forEach(function(a){ var b = document.createElement('button'); b.className = 'btn ' + a[2]; b.textContent = a[0]; b.onclick = a[1]; box.appendChild(b); });
-    $('banner').classList.add('show');
+    $('banner').classList.add('show'); try { $('pushPill').classList.remove('show'); } catch(e){}
   }
-  function hideBanner(){ $('banner').classList.remove('show'); }
+  function hideBanner(){ $('banner').classList.remove('show'); try { refresh(); } catch(e){} }
   function snooze(){ LS.set('kb_ask_snooze', String(Date.now())); hideBanner(); }
   function maybeAsk(){
     if (Date.now() - Number(LS.get('kb_ask_snooze') || 0) < 3 * 864e5) return;
@@ -347,13 +367,16 @@
     else if (perm === 'granted') { st = '<span class="warn">อนุญาตแล้ว · ' + (session ? 'รอลงทะเบียน' : 'รอเข้าสู่ระบบ') + '</span>'; dot = 'need'; }
     else { st = 'ยังไม่ได้เปิด'; dot = 'need'; }
     $('sPush').innerHTML = st; $('bellDot').className = dot;
+    var pillOn = dot !== 'on' && configured && !$('sheet').classList.contains('show') && !$('banner').classList.contains('show') && !(perm === 'denied');
+    $('pushPill').classList.toggle('show', pillOn);
+    if (perm === 'granted' && !session) note('ยังไม่ได้รับข้อมูลการเข้าสู่ระบบจากระบบ — Login ในแอปก่อน · ถ้า Login แล้วยังขึ้นข้อความนี้ ให้ผู้ดูแลตรวจ Script Property PUSH_SHELL_URL ให้ตรงกับลิงก์แอปนี้ (' + location.origin + location.pathname.replace(/[^\/]*$/, '') + ')', 'warn');
     $('bEnable').style.display = registered ? 'none' : '';
     $('bDisable').style.display = (registered || LS.get('kb_fcm_token')) ? '' : 'none';
     $('bServer').disabled = !registered;
   }
-  function openSheet(){ refresh(); $('scrim').classList.add('show'); $('sheet').classList.add('show'); }
-  function closeSheet(){ $('scrim').classList.remove('show'); $('sheet').classList.remove('show'); }
-  $('bellBtn').onclick = openSheet; $('scrim').onclick = closeSheet;
+  function openSheet(){ $('scrim').classList.add('show'); $('sheet').classList.add('show'); refresh(); }
+  function closeSheet(){ $('scrim').classList.remove('show'); $('sheet').classList.remove('show'); refresh(); }
+  $('bellBtn').onclick = openSheet; $('scrim').onclick = closeSheet; $('pushPill').onclick = openSheet;
   $('bEnable').onclick = function(){ enablePush(); };
   $('bDisable').onclick = function(){ disablePush(); };
   $('bLocal').onclick = testLocal;
