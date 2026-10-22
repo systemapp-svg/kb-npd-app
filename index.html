@@ -134,6 +134,7 @@
       <div class="row"><span>สถานะแจ้งเตือน</span><span id="sPush">—</span></div>
     </div>
     <div class="grid">
+      <button class="btn gold full" id="bInstall" style="display:none">ติดตั้งเป็นแอป (Android)</button>
       <button class="btn pri full" id="bEnable">เปิดการแจ้งเตือน</button>
       <button class="btn line" id="bLocal">ทดสอบในเครื่อง</button>
       <button class="btn line" id="bServer">ส่งทดสอบจากระบบ</button>
@@ -229,6 +230,8 @@
       session = { token: m.token, username: m.username, name: m.name || m.username };
       $('who').textContent = session.name;
       if (first) onSession();
+    } else if (m.type === 'kbnpd-back-root') { // อยู่หน้าแรกแล้ว
+      backArmed = Date.now(); showToast('กดย้อนกลับอีกครั้งเพื่อออก', '', '');
     } else if (m.type === 'kbnpd-open-push') { // v6.37 เมนูผู้ใช้ในระบบ → ตั้งค่าแจ้งเตือนมือถือ
       openSheet();
     } else if (m.type === 'kbnpd-logout') {
@@ -252,7 +255,7 @@
     if (!pushCapable) { note('เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน ลองเปิดด้วย Chrome (Android) หรือ Safari (iPhone iOS 16.4+)', 'bad'); return Promise.resolve(); }
     return Notification.requestPermission().then(function(p){
       refresh();
-      if (p !== 'granted') { note('ยังไม่ได้อนุญาตการแจ้งเตือน เปิดได้ที่การตั้งค่าของเครื่อง → การแจ้งเตือน → KB NPD', 'warn'); return; }
+      if (p !== 'granted') { note(isAndroid ? 'ยังไม่ได้อนุญาต — Android: แตะ 🔒 ข้างช่องลิงก์ (หรือ ตั้งค่า → แอป → KB NPD) → การแจ้งเตือน → อนุญาต' : 'ยังไม่ได้อนุญาตการแจ้งเตือน เปิดได้ที่การตั้งค่าของเครื่อง → การแจ้งเตือน → KB NPD', 'warn'); return; }
       hideBanner();
       return registerToken(false);
     });
@@ -324,6 +327,7 @@
   function maybeAsk(){
     if (Date.now() - Number(LS.get('kb_ask_snooze') || 0) < 3 * 864e5) return;
     if (isIOS && !standalone) { showIOSInstall(true); return; }
+    if (isAndroid && !standalone && !deferredInstall) { /* Chrome ยังไม่ให้ติดตั้ง — แจ้งเตือนในเบราว์เซอร์ได้ แต่แนะนำติดตั้ง */ }
     banner(BELL, 'รับแจ้งเตือนงานบนมือถือนี้?', 'เมื่อมีงานถึงคิวคุณหรือคำขอรออนุมัติ มือถือจะเด้งแจ้งทันที', [
       ['เปิดการแจ้งเตือน', function(){ enablePush(); }, 'pri'], ['ไว้ทีหลัง', snooze, 'ghost']]);
   }
@@ -373,6 +377,7 @@
     $('bEnable').style.display = registered ? 'none' : '';
     $('bDisable').style.display = (registered || LS.get('kb_fcm_token')) ? '' : 'none';
     $('bServer').disabled = !registered;
+    $('bInstall').style.display = (deferredInstall && !standalone) ? '' : 'none'; // v6.39 Android ติดตั้งจากหน้านี้ได้
   }
   function openSheet(){ $('scrim').classList.add('show'); $('sheet').classList.add('show'); refresh(); }
   function closeSheet(){ $('scrim').classList.remove('show'); $('sheet').classList.remove('show'); refresh(); }
@@ -380,6 +385,23 @@
   $('bEnable').onclick = function(){ enablePush(); };
   $('bDisable').onclick = function(){ disablePush(); };
   $('bLocal').onclick = testLocal;
+  $('bInstall').onclick = function(){ if (!deferredInstall) return; deferredInstall.prompt(); deferredInstall.userChoice.then(function(){ deferredInstall = null; refresh(); }).catch(function(){}); };
+  window.addEventListener('appinstalled', function(){ deferredInstall = null; hideBanner(); note('ติดตั้งแล้ว — เปิดแอป KB NPD จากไอคอนบนหน้าจอ', 'ok'); refresh(); });
+
+  // ── v6.39 ปุ่มย้อนกลับ (Android): ส่งให้ระบบปิดหน้าต่าง/กลับแท็บก่อนหน้า · ถึงหน้าแรกแล้วต้องกดซ้ำภายใน 2 วินาทีจึงออก ──
+  var backArmed = 0, leaving = false;
+  function postApp(msg){ try { var w = $('app').contentWindow; if (!w) return; w.postMessage(msg, '*'); for (var i = 0; i < w.frames.length; i++) { try { w.frames[i].postMessage(msg, '*'); for (var j = 0; j < w.frames[i].frames.length; j++) w.frames[i].frames[j].postMessage(msg, '*'); } catch(e){} } } catch(e){} }
+  if (configured && history.pushState) {
+    history.replaceState({ kbRoot: 1 }, '');
+    history.pushState({ kbTrap: 1 }, '');
+    window.addEventListener('popstate', function(){
+      if (leaving) return;
+      if ($('sheet').classList.contains('show')) { closeSheet(); history.pushState({ kbTrap: 1 }, ''); return; }
+      if (backArmed && Date.now() - backArmed < 2000) { leaving = true; history.back(); return; } // ออกจากแอป
+      history.pushState({ kbTrap: 1 }, '');
+      postApp({ type:'kbnpd-back' });
+    });
+  }
   $('bServer').onclick = testServer;
 
   if (pushCapable && Notification.permission === 'granted') ensureSW().catch(function(){});
