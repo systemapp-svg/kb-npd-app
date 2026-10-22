@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KB NPD</title>
+<meta name="theme-color" content="#0A1628">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KB NPD">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root{
+    --navy:#0A1628; --navy2:#13233A; --gold:#C8A84B; --ink:#0D1B2E; --muted:#5B6B80;
+    --line:#E3E8EF; --bg:#F4F6F9; --ok:#16794C; --warn:#B7791F; --off:#98A2B3;
+    --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--navy);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Thai","Leelawadee UI",Tahoma,sans-serif}
+  body{display:flex;flex-direction:column;overflow:hidden}
+
+  .bar{flex:0 0 auto;padding:calc(var(--safe-t) + 8px) 12px 8px 14px;display:flex;align-items:center;gap:10px;color:#fff}
+  .mark{width:30px;height:30px;border-radius:8px;background:var(--gold);color:var(--navy);display:grid;place-items:center;font-weight:800;font-size:13px;letter-spacing:-.5px}
+  .ttl{font-weight:700;font-size:15px;line-height:1.1}
+  .ttl small{display:block;font-weight:400;font-size:11px;color:#9FB0C6;margin-top:2px}
+  .sp{flex:1}
+  .bell{position:relative;border:0;background:rgba(255,255,255,.08);color:#fff;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;cursor:pointer}
+  .bell svg{width:21px;height:21px}
+  .bell i{position:absolute;top:8px;right:9px;width:9px;height:9px;border-radius:50%;background:var(--off);box-shadow:0 0 0 2px var(--navy)}
+  .bell i.on{background:#3DDC84}.bell i.need{background:var(--gold)}
+
+  .stage{flex:1;position:relative;background:var(--bg);border-radius:14px 14px 0 0;overflow:hidden}
+  iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
+  .loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px}
+
+  .banner{position:absolute;left:10px;right:10px;bottom:calc(var(--safe-b) + 10px);background:#fff;border-radius:14px;
+    box-shadow:0 10px 30px rgba(10,22,40,.22);padding:14px;display:none;gap:12px;align-items:flex-start;z-index:5}
+  .banner.show{display:flex}
+  .banner .ic{flex:0 0 36px;height:36px;border-radius:10px;background:#FBF5E4;color:#8A6D1C;display:grid;place-items:center}
+  .banner .ic svg{width:20px;height:20px}
+  .banner .bt{display:block;font-size:14px;margin-bottom:3px}
+  .banner p{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+  .banner .acts{display:flex;gap:8px;margin-top:10px}
+  .btn{border:0;border-radius:10px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .btn.pri{background:var(--navy);color:#fff}.btn.gold{background:var(--gold);color:var(--navy)}
+  .btn.ghost{background:transparent;color:var(--muted)}.btn.line{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn:disabled{opacity:.5}
+
+  .scrim{position:fixed;inset:0;background:rgba(10,22,40,.45);display:none;z-index:10}
+  .scrim.show{display:block}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:8px 18px calc(var(--safe-b) + 18px);
+    transform:translateY(105%);transition:transform .22s ease;z-index:11;max-width:560px;margin:0 auto}
+  .sheet.show{transform:none}
+  .grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 14px}
+  .sheet h3{margin:0 0 4px;font-size:17px}
+  .sheet .sub{margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .rows{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:11px 13px;font-size:13.5px;border-top:1px solid var(--line)}
+  .row:first-child{border-top:0}
+  .row > span:first-child{color:var(--muted)}
+  .row > span:last-child{font-weight:600;text-align:right}
+  .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:#B42318}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .grid .btn{padding:12px 10px}
+  .full{grid-column:1/-1}
+  .note{font-size:12px;color:var(--muted);margin:12px 0 0;line-height:1.5}
+
+  .toast{position:fixed;left:12px;right:12px;top:calc(var(--safe-t) + 10px);background:var(--navy2);color:#fff;border-radius:14px;padding:12px 14px;
+    box-shadow:0 12px 30px rgba(0,0,0,.3);z-index:20;transform:translateY(-140%);transition:transform .25s ease;display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+  .toast.show{transform:none}
+  .toast .mark{flex:0 0 30px}
+  .toast b{display:block;font-size:13.5px}.toast p{margin:2px 0 0;font-size:12.5px;color:#C9D4E3;line-height:1.4}
+
+  .setup{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center}
+  .setup.show{display:flex}
+  .setup div{max-width:340px}.setup h2{font-size:17px;margin:0 0 8px}.setup p{font-size:13.5px;color:var(--muted);line-height:1.55;margin:0 0 14px}
+  code{background:#EEF1F5;border-radius:5px;padding:1px 5px;font-size:12px}
+</style>
+</head>
+<body>
+  <header class="bar">
+    <div class="mark">KB</div>
+    <div class="ttl">KB NPD<small id="who">Kings Brite</small></div>
+    <div class="sp"></div>
+    <button class="bell" id="bellBtn" aria-label="การแจ้งเตือน">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <i id="bellDot"></i>
+    </button>
+  </header>
+
+  <main class="stage">
+    <div class="loading" id="loading">กำลังเปิดระบบ…</div>
+    <iframe id="app" title="KB NPD" allow="clipboard-write"></iframe>
+    <div class="setup" id="setup"><div>
+      <h2>ยังไม่ได้ตั้งค่าแอป</h2>
+      <p>แก้ไฟล์ <code>config.js</code> ใส่ URL ของเว็บแอป Apps Script และค่าจาก Firebase ก่อน<br>ระหว่างนี้กดกระดิ่งด้านบนเพื่อลองแจ้งเตือนในเครื่องได้</p>
+    </div></div>
+
+    <div class="banner" id="banner">
+      <div class="ic" id="bannerIc"></div>
+      <div style="flex:1">
+        <b class="bt" id="bannerT"></b><p id="bannerP"></p>
+        <div class="acts" id="bannerActs"></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="scrim" id="scrim"></div>
+  <section class="sheet" id="sheet" aria-label="ตั้งค่าการแจ้งเตือน">
+    <div class="grip"></div>
+    <h3>การแจ้งเตือนบนมือถือ</h3>
+    <p class="sub">แจ้งเมื่อมีงานถึงคิวคุณ คำขอรออนุมัติ หรือผลการพิจารณา</p>
+    <div class="rows">
+      <div class="row"><span>เครื่องนี้</span><span id="sDev">—</span></div>
+      <div class="row"><span>ผู้ใช้</span><span id="sUser">ยังไม่ได้เข้าสู่ระบบ</span></div>
+      <div class="row"><span>ติดตั้งเป็นแอป</span><span id="sInst">—</span></div>
+      <div class="row"><span>สถานะแจ้งเตือน</span><span id="sPush">—</span></div>
+    </div>
+    <div class="grid">
+      <button class="btn pri full" id="bEnable">เปิดการแจ้งเตือน</button>
+      <button class="btn line" id="bLocal">ทดสอบในเครื่อง</button>
+      <button class="btn line" id="bServer">ส่งทดสอบจากระบบ</button>
+      <button class="btn ghost full" id="bDisable">ปิดการแจ้งเตือนบนเครื่องนี้</button>
+    </div>
+    <p class="note" id="sNote"></p>
+  </section>
+
+  <div class="toast" id="toast"><div class="mark">KB</div><div><b id="toastT"></b><p id="toastP"></p></div></div>
+
+<script src="config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script>
+(function(){
+  'use strict';
+  var C = self.KB_CONFIG || {};
+  var $ = function(id){ return document.getElementById(id); };
+  var LS = {
+    get: function(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+    set: function(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
+    del: function(k){ try { localStorage.removeItem(k); } catch(e){} }
+  };
+  var configured = !!(C.appUrl && !/X{6}/.test(C.appUrl));
+  var fbReady = !!(C.firebase && C.firebase.apiKey && !/^X+$/.test(C.firebase.apiKey) && C.vapidKey && !/^X+$/.test(C.vapidKey) && self.firebase);
+
+  // ── สภาพเครื่อง ──
+  var ua = navigator.userAgent;
+  var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isAndroid = /Android/.test(ua);
+  var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var pushCapable = ('serviceWorker' in navigator) && ('Notification' in window) && ('PushManager' in window);
+  var deviceName = isIOS ? (/iPad/.test(ua) ? 'iPad' : 'iPhone') : isAndroid ? 'Android' : (/Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'คอมพิวเตอร์');
+
+  var session = null;          // { token, username, name } จากเว็บแอปเมื่อ Login แล้ว
+  var swReg = null, messaging = null, deferredInstall = null;
+
+  // ── เปิดเว็บแอปใน iframe (พาลิงก์ ?item= ต่อไปด้วย) ──
+  var qs = new URLSearchParams(location.search);
+  function appSrc(){
+    var p = new URLSearchParams(); p.set('shell','1');
+    ['item','page','no'].forEach(function(k){ if (qs.get(k)) p.set(k, qs.get(k)); });
+    return C.appUrl + (C.appUrl.indexOf('?') >= 0 ? '&' : '?') + p.toString();
+  }
+  if (configured) {
+    $('app').src = appSrc();
+    $('app').addEventListener('load', function(){ $('loading').style.display = 'none'; });
+  } else {
+    $('loading').style.display = 'none'; $('setup').classList.add('show');
+  }
+
+  // ── Service worker (ใช้ทั้งรับ push และทดสอบในเครื่อง) ──
+  function ensureSW(){
+    if (swReg) return Promise.resolve(swReg);
+    if (!('serviceWorker' in navigator)) return Promise.reject(new Error('เบราว์เซอร์นี้ไม่รองรับ'));
+    return navigator.serviceWorker.register('firebase-messaging-sw.js').then(function(){ return navigator.serviceWorker.ready; })
+      .then(function(r){ swReg = r; return r; });
+  }
+  if (fbReady) {
+    try {
+      firebase.initializeApp(C.firebase);
+      messaging = firebase.messaging();
+      // ข้อความเข้ามาขณะเปิดแอปอยู่ → แสดงแถบด้านบน
+      messaging.onMessage(function(p){
+        var n = p.notification || {}, d = p.data || {};
+        showToast(n.title || d.title || 'KB NPD', n.body || d.body || '', d.url || (p.fcmOptions && p.fcmOptions.link) || '');
+      });
+    } catch(e){ fbReady = false; }
+  }
+
+  // ── คุยกับเว็บแอป Apps Script ──
+  function api(body){
+    // text/plain = simple request ไม่ต้อง preflight; Apps Script redirect ไป googleusercontent ที่อนุญาต CORS
+    return fetch(C.appUrl, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body), redirect:'follow' })
+      .then(function(r){ return r.json(); });
+  }
+  window.addEventListener('message', function(ev){
+    if (!/^https:\/\/[a-z0-9\-]+\.googleusercontent\.com$/.test(ev.origin)) return; // รับเฉพาะจากเว็บแอปของ Google
+    var m = ev.data || {};
+    if (m.type === 'kbnpd-session' && /^t\.[0-9a-f]{48}$/.test(String(m.token || ''))) {
+      var first = !session || session.username !== m.username;
+      session = { token: m.token, username: m.username, name: m.name || m.username };
+      $('who').textContent = session.name;
+      if (first) onSession();
+    } else if (m.type === 'kbnpd-logout') {
+      var tok = LS.get('kb_fcm_token');
+      if (tok && configured) api({ action:'unregisterPush', fcmToken: tok }).catch(function(){});
+      LS.del('kb_push_user'); session = null; $('who').textContent = 'Kings Brite';
+      refresh();
+    }
+  });
+
+  function onSession(){
+    refresh();
+    if (!pushCapable) return;
+    if (Notification.permission === 'granted') { registerToken(true); return; }
+    if (Notification.permission === 'default') maybeAsk();
+  }
+
+  // ── ขอสิทธิ์ + ลงทะเบียน ──
+  function enablePush(){
+    if (isIOS && !standalone) { showIOSInstall(); return Promise.resolve(); }
+    if (!pushCapable) { note('เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน ลองเปิดด้วย Chrome (Android) หรือ Safari (iPhone iOS 16.4+)', 'bad'); return Promise.resolve(); }
+    return Notification.requestPermission().then(function(p){
+      refresh();
+      if (p !== 'granted') { note('ยังไม่ได้อนุญาตการแจ้งเตือน เปิดได้ที่การตั้งค่าของเครื่อง → การแจ้งเตือน → KB NPD', 'warn'); return; }
+      hideBanner();
+      return registerToken(false);
+    });
+  }
+  function registerToken(silent){
+    if (!fbReady) { if (!silent) note('อนุญาตแล้ว — แต่ยังไม่ได้ตั้งค่า Firebase ใน config.js จึงทดสอบได้เฉพาะ "ทดสอบในเครื่อง"', 'warn'); return Promise.resolve(); }
+    return ensureSW().then(function(reg){
+      return messaging.getToken({ vapidKey: C.vapidKey, serviceWorkerRegistration: reg });
+    }).then(function(tok){
+      if (!tok) throw new Error('ขอ token ไม่สำเร็จ');
+      var prevTok = LS.get('kb_fcm_token'), prevUser = LS.get('kb_push_user'), last = Number(LS.get('kb_push_at') || 0);
+      LS.set('kb_fcm_token', tok);
+      if (!session) { if (!silent) note('อนุญาตแล้ว — เข้าสู่ระบบในแอปเพื่อผูกเครื่องนี้กับชื่อผู้ใช้ของคุณ', 'warn'); refresh(); return; }
+      // ลงทะเบียนซ้ำเฉพาะเมื่อ token/ผู้ใช้เปลี่ยน หรือเกิน 7 วัน (ไม่ต้องเขียนชีตทุกครั้งที่เปิดแอป)
+      if (silent && prevTok === tok && prevUser === session.username && Date.now() - last < 7 * 864e5) { refresh(); return; }
+      return api({ action:'registerPush', token: session.token, fcmToken: tok, device: deviceName }).then(function(r){
+        if (!r || !r.success) throw new Error((r && r.message) || 'ลงทะเบียนไม่สำเร็จ');
+        LS.set('kb_push_user', session.username); LS.set('kb_push_at', String(Date.now()));
+        if (!silent) note('เปิดการแจ้งเตือนบนเครื่องนี้แล้ว ✓', 'ok');
+        refresh();
+      });
+    }).catch(function(e){ note('เปิดการแจ้งเตือนไม่สำเร็จ: ' + e.message, 'bad'); refresh(); });
+  }
+  function disablePush(){
+    var tok = LS.get('kb_fcm_token');
+    var p = (tok && configured) ? api({ action:'unregisterPush', fcmToken: tok }).catch(function(){}) : Promise.resolve();
+    return p.then(function(){
+      if (messaging) return messaging.deleteToken().catch(function(){});
+    }).then(function(){
+      LS.del('kb_fcm_token'); LS.del('kb_push_user'); LS.del('kb_push_at');
+      note('ปิดการแจ้งเตือนบนเครื่องนี้แล้ว', 'ok'); refresh();
+    });
+  }
+
+  // ── ทดสอบ ──
+  function testLocal(){
+    var go = function(){
+      return ensureSW().then(function(reg){
+        return reg.showNotification('ถึงคิวประเมิน RD-LAB', {
+          body: 'KB-NPD-2026-0142 · บริษัท ตัวอย่าง จำกัด (3 รายการ)', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png',
+          tag: 'kb-local-test', renotify: true, data: { url: location.href.split('?')[0], kbLocal: true }
+        });
+      }).then(function(){ note('ส่งแจ้งเตือนทดสอบในเครื่องแล้ว — ถ้าไม่เห็น ลองย่อแอปแล้วกดอีกครั้ง', 'ok'); });
+    };
+    if (!pushCapable && !('Notification' in window)) { note('เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน', 'bad'); return; }
+    if (isIOS && !standalone) { showIOSInstall(); return; }
+    if (Notification.permission === 'granted') { go().catch(function(e){ note(e.message, 'bad'); }); return; }
+    Notification.requestPermission().then(function(p){ refresh(); if (p === 'granted') return go(); note('ยังไม่ได้อนุญาตการแจ้งเตือน', 'warn'); });
+  }
+  function testServer(){
+    if (!session) { note('เข้าสู่ระบบในแอปก่อน', 'warn'); return; }
+    $('bServer').disabled = true;
+    api({ action:'testPush', token: session.token }).then(function(r){
+      note(r.success ? 'ระบบส่งแล้ว — แจ้งเตือนควรเด้งภายในไม่กี่วินาที' : ('ส่งไม่สำเร็จ: ' + (r.message || '')), r.success ? 'ok' : 'bad');
+    }).catch(function(e){ note('ติดต่อระบบไม่ได้: ' + e.message, 'bad'); }).then(function(){ $('bServer').disabled = false; });
+  }
+
+  // ── แถบชวนเปิด / ติดตั้ง ──
+  var BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+  var SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+  function banner(ic, t, p, acts){
+    $('bannerIc').innerHTML = ic; $('bannerT').textContent = t; $('bannerP').innerHTML = p;
+    var box = $('bannerActs'); box.innerHTML = '';
+    acts.forEach(function(a){ var b = document.createElement('button'); b.className = 'btn ' + a[2]; b.textContent = a[0]; b.onclick = a[1]; box.appendChild(b); });
+    $('banner').classList.add('show');
+  }
+  function hideBanner(){ $('banner').classList.remove('show'); }
+  function snooze(){ LS.set('kb_ask_snooze', String(Date.now())); hideBanner(); }
+  function maybeAsk(){
+    if (Date.now() - Number(LS.get('kb_ask_snooze') || 0) < 3 * 864e5) return;
+    if (isIOS && !standalone) { showIOSInstall(true); return; }
+    banner(BELL, 'รับแจ้งเตือนงานบนมือถือนี้?', 'เมื่อมีงานถึงคิวคุณหรือคำขอรออนุมัติ มือถือจะเด้งแจ้งทันที', [
+      ['เปิดการแจ้งเตือน', function(){ enablePush(); }, 'pri'], ['ไว้ทีหลัง', snooze, 'ghost']]);
+  }
+  function showIOSInstall(fromAsk){
+    banner(SHARE, 'ติดตั้งแอปก่อนเพื่อรับแจ้งเตือน',
+      'iPhone รับแจ้งเตือนได้เมื่อเปิดจากไอคอนบนหน้าจอโฮม: แตะปุ่ม <b>แชร์</b> ด้านล่างของ Safari → <b>เพิ่มไปยังหน้าจอโฮม</b> แล้วเปิดแอป KB NPD จากไอคอน (iOS 16.4 ขึ้นไป)',
+      [['เข้าใจแล้ว', fromAsk ? snooze : hideBanner, 'pri']]);
+    closeSheet();
+  }
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault(); deferredInstall = e;
+    if (!LS.get('kb_install_snooze')) banner(SHARE, 'ติดตั้ง KB NPD เป็นแอป', 'มีไอคอนบนหน้าจอ เปิดเต็มจอ และรับแจ้งเตือนได้', [
+      ['ติดตั้ง', function(){ hideBanner(); deferredInstall.prompt(); deferredInstall = null; }, 'pri'],
+      ['ไม่ใช่ตอนนี้', function(){ LS.set('kb_install_snooze','1'); hideBanner(); }, 'ghost']]);
+  });
+
+  // ── แถบแจ้งเตือนขณะเปิดแอป ──
+  var toastTimer = null, toastUrl = '';
+  function showToast(t, p, url){
+    $('toastT').textContent = t; $('toastP').textContent = p; toastUrl = url || '';
+    $('toast').classList.add('show'); clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ $('toast').classList.remove('show'); }, 6000);
+  }
+  $('toast').onclick = function(){
+    $('toast').classList.remove('show');
+    if (toastUrl) { try { var u = new URL(toastUrl); qs = u.searchParams; if (configured) $('app').src = appSrc(); } catch(e){} }
+  };
+
+  // ── หน้าตั้งค่า ──
+  function note(msg, cls){ $('sNote').className = 'note ' + (cls || ''); $('sNote').textContent = msg; }
+  function refresh(){
+    var perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+    var registered = !!LS.get('kb_fcm_token') && session && LS.get('kb_push_user') === session.username;
+    $('sDev').textContent = deviceName;
+    $('sUser').textContent = session ? session.name : 'ยังไม่ได้เข้าสู่ระบบ';
+    $('sInst').innerHTML = standalone ? '<span class="ok">ติดตั้งแล้ว</span>' : (isIOS ? '<span class="warn">ยังไม่ได้ติดตั้ง</span>' : 'เปิดในเบราว์เซอร์');
+    var st, dot = '';
+    if (perm === 'unsupported' || !pushCapable) { st = '<span class="bad">' + (isIOS && !standalone ? 'ต้องติดตั้งแอปก่อน' : 'ไม่รองรับ') + '</span>'; dot = isIOS ? 'need' : ''; }
+    else if (perm === 'denied') st = '<span class="bad">ถูกปิดในการตั้งค่าเครื่อง</span>';
+    else if (perm === 'granted' && registered) { st = '<span class="ok">เปิดอยู่</span>'; dot = 'on'; }
+    else if (perm === 'granted') { st = '<span class="warn">อนุญาตแล้ว · ' + (session ? 'รอลงทะเบียน' : 'รอเข้าสู่ระบบ') + '</span>'; dot = 'need'; }
+    else { st = 'ยังไม่ได้เปิด'; dot = 'need'; }
+    $('sPush').innerHTML = st; $('bellDot').className = dot;
+    $('bEnable').style.display = registered ? 'none' : '';
+    $('bDisable').style.display = (registered || LS.get('kb_fcm_token')) ? '' : 'none';
+    $('bServer').disabled = !registered;
+  }
+  function openSheet(){ refresh(); $('scrim').classList.add('show'); $('sheet').classList.add('show'); }
+  function closeSheet(){ $('scrim').classList.remove('show'); $('sheet').classList.remove('show'); }
+  $('bellBtn').onclick = openSheet; $('scrim').onclick = closeSheet;
+  $('bEnable').onclick = function(){ enablePush(); };
+  $('bDisable').onclick = function(){ disablePush(); };
+  $('bLocal').onclick = testLocal;
+  $('bServer').onclick = testServer;
+
+  if (pushCapable && Notification.permission === 'granted') ensureSW().catch(function(){});
+  else if ('serviceWorker' in navigator) ensureSW().catch(function(){}); // ให้ติดตั้งเป็นแอปได้ (ต้องมี service worker)
+  refresh();
+  window.KBShell = { refresh: refresh, showToast: showToast, openSheet: openSheet, _state: function(){ return { session: session, standalone: standalone, fbReady: fbReady }; } };
+})();
+</script>
+</body>
+</html>
